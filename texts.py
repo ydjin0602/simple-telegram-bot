@@ -19,6 +19,17 @@ class ThemesButtonsTexts(Enum):
         return keyboard_markup
 
 
+class NightmaresButtonsTexts(Enum):
+    FIRST_PROBLEM = 'Что делать чтобы кошмары не снились или снились реже?'
+    SECOND_PROBLEM = 'Как уснуть снова после кошмара?'
+
+    @staticmethod
+    def buttons():
+        keyboard_markup = types.ReplyKeyboardMarkup(row_width=1, one_time_keyboard=True)
+        keyboard_markup.add(*(button.value for button in NightmaresButtonsTexts))
+        return keyboard_markup
+
+
 class YesNoButtons(Enum):
     YES = 'Да'
     NO = 'Нет'
@@ -35,3 +46,21 @@ class Texts:
             'у тебя есть какие то проблемы со сном.'
     happy_for_you = 'Рад за тебя.'
     themes = 'Хорошо, тогда выбери одну из проблем, которая тебе подходит:'
+
+    often_wake_up_first_assumption = 'pass_often_wake_up_first'
+    often_wake_up_first_assumption_yes = 'pass_often_wake_up_first_yes'
+    often_wake_up_second_assumption = 'pass_often_wake_up_second'
+    often_wake_up_second_assumption_yes = 'pass_often_wake_up_second_yes'
+    often_wake_up_third_assumption = 'pass_often_wake_up_third'
+    often_wake_up_third_assumption_yes = 'pass_often_wake_up_third_yes'
+    often_wake_up_third_assumption_no = 'pass_often_wake_up_third_no'
+
+    nightmares_start = 'pass_nightmares_start'
+    nightmares_first_problem = 'pass_nightmares_first_problem'
+    nightmares_second_problem = 'pass_nightmares_second_problem'
+    nightmares_look_second_problem = 'pass_nightmares_look_second_problem'
+    nightmares_look_first_problem = 'pass_nightmares_look_first_problem'
+    nightmares_finish = 'pass_nightmares_finish'
+
+    anything_else = 'Могу ли я еще чем то помочь?'
+    finish = 'pass_finish'
