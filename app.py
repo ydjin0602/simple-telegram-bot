@@ -7,7 +7,8 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import StatesGroup, State
 
-from texts import Texts, YesNoButtons, ThemesButtonsTexts, NightmaresButtonsTexts
+from texts import Texts, YesNoButtons, ThemesButtonsTexts, NightmaresButtonsTexts, \
+    SleepinessButtonsTexts
 
 API_TOKEN = os.getenv('API_TOKEN')
 
@@ -38,6 +39,34 @@ class NightmaresStates(StatesGroup):
     finish = State()
 
 
+class CantFallAsleepStates(StatesGroup):
+    first_advice = State()
+    is_useful_first = State()
+    second_advice = State()
+    is_useful_second = State()
+    third_advice = State()
+    is_useful_third = State()
+    fourth_advice = State()
+    is_useful_fourth = State()
+    fifth_advice = State()
+    finish = State()
+
+
+class SleepinessStates(StatesGroup):
+    start = State()
+    first_advice = State()
+    second_advice = State()
+    finish = State()
+
+
+class SleepParalysisStates(StatesGroup):
+    finish = State()
+
+
+class CantSleepStates(StatesGroup):
+    finish = State()
+
+
 @dp.message_handler(commands=['start'], state='*')
 async def start(message: types.Message):
     await MainStates.start.set()
@@ -58,7 +87,11 @@ async def start_no(message: types.Message, state: FSMContext):
     state=[
         MainStates.start,
         OftenWakeUpStates.finish,
-        NightmaresStates.finish
+        NightmaresStates.finish,
+        SleepParalysisStates.finish,
+        CantSleepStates.finish,
+        SleepinessStates.finish,
+        CantFallAsleepStates.finish,
     ]
 )
 async def start_yes(message: types.Message, state: FSMContext):
@@ -141,7 +174,11 @@ async def often_wake_up_third_assumption_no(message: types.Message, state: FSMCo
     Text(equals=YesNoButtons.NO.value, ignore_case=True),
     state=[
         OftenWakeUpStates.finish,
-        NightmaresStates.finish
+        NightmaresStates.finish,
+        SleepParalysisStates.finish,
+        CantSleepStates.finish,
+        SleepinessStates.finish,
+        CantFallAsleepStates.finish,
     ]
 )
 async def finish(message: types.Message, state: FSMContext):
@@ -176,7 +213,7 @@ async def nightmares_first_problem(message: types.Message, state: FSMContext):
 
 @dp.message_handler(
     Text(equals=YesNoButtons.NO.value, ignore_case=True),
-    state=NightmaresStates.first_problem
+    state=[NightmaresStates.first_problem, NightmaresStates.second_problem]
 )
 async def nightmares_first_problem_no(message: types.Message, state: FSMContext):
     await NightmaresStates.finish.set()
@@ -200,13 +237,183 @@ async def nightmares_second_problem(message: types.Message, state: FSMContext):
 
 
 @dp.message_handler(
-    Text(equals=YesNoButtons.NO.value, ignore_case=True),
-    state=NightmaresStates.second_problem
+    Text(equals=ThemesButtonsTexts.SLEEP_PARALYSIS.value, ignore_case=True),
+    state=MainStates.themes
 )
-async def nightmares_second_problem_no(message: types.Message, state: FSMContext):
-    await NightmaresStates.finish.set()
-    await message.answer(Texts.nightmares_finish)
+async def sleep_paralysis_advices(message: types.Message, state: FSMContext):
+    await SleepParalysisStates.finish.set()
+    await message.answer(Texts.sleep_paralysis_advices)
     await message.answer(Texts.anything_else, reply_markup=YesNoButtons.buttons())
+
+
+@dp.message_handler(
+    Text(equals=ThemesButtonsTexts.CANT_SLEEP.value, ignore_case=True),
+    state=MainStates.themes
+)
+async def cant_sleep_advices(message: types.Message, state: FSMContext):
+    await CantSleepStates.finish.set()
+    await message.answer(Texts.cant_sleep_advices)
+    await message.answer(Texts.anything_else, reply_markup=YesNoButtons.buttons())
+
+
+@dp.message_handler(
+    Text(equals=ThemesButtonsTexts.SLEEPINESS.value, ignore_case=True),
+    state=MainStates.themes
+)
+async def sleepiness_start(message: types.Message, state: FSMContext):
+    await SleepinessStates.start.set()
+    await message.answer(Texts.sleepiness_start,
+                         reply_markup=SleepinessButtonsTexts.buttons())
+
+
+@dp.message_handler(
+    Text(equals=SleepinessButtonsTexts.FIRST_ADVICE.value, ignore_case=True),
+    state=SleepinessStates.start
+)
+@dp.message_handler(
+    Text(equals=YesNoButtons.YES.value, ignore_case=True),
+    state=SleepinessStates.second_advice
+)
+async def sleepiness_first_advice(message: types.Message, state: FSMContext):
+    await SleepinessStates.first_advice.set()
+    await message.answer(Texts.sleepiness_first_advice)
+    await message.answer(Texts.sleepiness_look_second_advice,
+                         reply_markup=YesNoButtons.buttons())
+
+
+@dp.message_handler(
+    Text(equals=SleepinessButtonsTexts.SECOND_ADVICE.value, ignore_case=True),
+    state=SleepinessStates.start
+)
+@dp.message_handler(
+    Text(equals=YesNoButtons.YES.value, ignore_case=True),
+    state=SleepinessStates.first_advice
+)
+async def sleepiness_second_advice(message: types.Message, state: FSMContext):
+    await SleepinessStates.second_advice.set()
+    await message.answer(Texts.sleepiness_second_advice)
+    await message.answer(Texts.sleepiness_look_first_advice,
+                         reply_markup=YesNoButtons.buttons())
+
+
+@dp.message_handler(
+    Text(equals=YesNoButtons.NO.value, ignore_case=True),
+    state=[
+        SleepinessStates.first_advice,
+        SleepinessStates.second_advice
+    ]
+)
+async def sleepiness_finish(message: types.Message, state: FSMContext):
+    await SleepinessStates.finish.set()
+    await message.answer(Texts.sleepiness_finish)
+    await message.answer(Texts.anything_else, reply_markup=YesNoButtons.buttons())
+
+
+@dp.message_handler(
+    Text(equals=ThemesButtonsTexts.CANT_FALL_ASLEEP.value, ignore_case=True),
+    state=MainStates.themes
+)
+async def cant_fall_asleep_first_advice(message: types.Message, state: FSMContext):
+    await CantFallAsleepStates.first_advice.set()
+    await message.answer(Texts.cant_fall_asleep_first_advice)
+    await message.answer(Texts.is_useful, reply_markup=YesNoButtons.buttons())
+
+
+@dp.message_handler(
+    Text(equals=YesNoButtons.NO.value, ignore_case=True),
+    state=[
+        CantFallAsleepStates.is_useful_first,
+        CantFallAsleepStates.is_useful_second,
+        CantFallAsleepStates.is_useful_third,
+        CantFallAsleepStates.is_useful_fourth,
+        CantFallAsleepStates.fifth_advice
+    ]
+)
+async def cant_fall_asleep_early_finish(message: types.Message, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state == 'CantFallAsleepStates:fifth_advice':
+        await message.answer(Texts.cant_fall_asleep_finish)
+    else:
+        await message.answer(Texts.cant_fall_asleep_early_finish)
+    await CantFallAsleepStates.finish.set()
+    await message.answer(Texts.anything_else, reply_markup=YesNoButtons.buttons())
+
+
+@dp.message_handler(
+    Text(equals=YesNoButtons.YES.value, ignore_case=True),
+    state=[
+        CantFallAsleepStates.first_advice,
+        CantFallAsleepStates.second_advice,
+        CantFallAsleepStates.third_advice,
+        CantFallAsleepStates.fourth_advice,
+        CantFallAsleepStates.fifth_advice,
+    ]
+)
+async def cant_fall_asleep_is_useful(message: types.Message, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state == 'CantFallAsleepStates:fifth_advice':
+        await CantFallAsleepStates.next()
+        await message.answer(Texts.cant_fall_asleep_early_finish)
+        await message.answer(Texts.anything_else, reply_markup=YesNoButtons.buttons())
+    else:
+        await CantFallAsleepStates.next()
+        await message.answer(Texts.more_info, reply_markup=YesNoButtons.buttons())
+
+
+@dp.message_handler(
+    Text(equals=YesNoButtons.NO.value, ignore_case=True),
+    state=CantFallAsleepStates.first_advice
+)
+@dp.message_handler(
+    Text(equals=YesNoButtons.YES.value, ignore_case=True),
+    state=CantFallAsleepStates.is_useful_first
+)
+async def cant_asleep_second_advice(message: types.Message, state: FSMContext):
+    await CantFallAsleepStates.second_advice.set()
+    await message.answer(Texts.cant_fall_asleep_second_advice)
+    await message.answer(Texts.is_useful, reply_markup=YesNoButtons.buttons())
+
+
+@dp.message_handler(
+    Text(equals=YesNoButtons.NO.value, ignore_case=True),
+    state=CantFallAsleepStates.second_advice
+)
+@dp.message_handler(
+    Text(equals=YesNoButtons.YES.value, ignore_case=True),
+    state=CantFallAsleepStates.is_useful_second
+)
+async def cant_asleep_third_advice(message: types.Message, state: FSMContext):
+    await CantFallAsleepStates.third_advice.set()
+    await message.answer(Texts.cant_fall_asleep_third_advice)
+    await message.answer(Texts.is_useful, reply_markup=YesNoButtons.buttons())
+
+
+@dp.message_handler(
+    Text(equals=YesNoButtons.NO.value, ignore_case=True),
+    state=CantFallAsleepStates.third_advice
+)
+@dp.message_handler(
+    Text(equals=YesNoButtons.YES.value, ignore_case=True),
+    state=CantFallAsleepStates.is_useful_third
+)
+async def cant_asleep_fourth_advice(message: types.Message, state: FSMContext):
+    await CantFallAsleepStates.fourth_advice.set()
+    await message.answer(Texts.cant_fall_asleep_fourth_advice)
+    await message.answer(Texts.is_useful, reply_markup=YesNoButtons.buttons())
+
+
+@dp.message_handler(
+    Text(equals=YesNoButtons.NO.value, ignore_case=True),
+    state=CantFallAsleepStates.fourth_advice
+)
+@dp.message_handler(
+    Text(equals=YesNoButtons.YES.value, ignore_case=True),
+    state=CantFallAsleepStates.is_useful_fourth
+)
+async def cant_asleep_fifth_advice(message: types.Message, state: FSMContext):
+    await CantFallAsleepStates.fifth_advice.set()
+    await message.answer(Texts.cant_fall_asleep_fifth_advice)
+    await message.answer(Texts.is_useful, reply_markup=YesNoButtons.buttons())
 
 
 if __name__ == '__main__':
