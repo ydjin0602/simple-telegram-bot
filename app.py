@@ -1,5 +1,7 @@
 import logging
 import os
+import re
+from datetime import datetime
 
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
@@ -9,6 +11,8 @@ from aiogram.dispatcher.filters.state import StatesGroup, State
 
 from texts import Texts, YesNoButtons, ThemesButtonsTexts, NightmaresButtonsTexts, \
     SleepinessButtonsTexts
+
+TIME_RE = re.compile(r'^(([01]\d|2[0-3]):([0-5]\d)|24:00)$')
 
 API_TOKEN = os.getenv('API_TOKEN')
 
@@ -59,6 +63,13 @@ class SleepinessStates(StatesGroup):
     finish = State()
 
 
+class SleepAnalysisStates(StatesGroup):
+    input_first_time = State()
+    input_second_time = State()
+    third_step = State()
+    finish = State()
+
+
 class SleepParalysisStates(StatesGroup):
     finish = State()
 
@@ -85,7 +96,7 @@ async def start_no(message: types.Message, state: FSMContext):
 @dp.message_handler(
     Text(equals=YesNoButtons.YES.value, ignore_case=True),
     state=[
-        MainStates.start,
+        SleepAnalysisStates.finish,
         OftenWakeUpStates.finish,
         NightmaresStates.finish,
         SleepParalysisStates.finish,
@@ -179,6 +190,7 @@ async def often_wake_up_third_assumption_no(message: types.Message, state: FSMCo
         CantSleepStates.finish,
         SleepinessStates.finish,
         CantFallAsleepStates.finish,
+        SleepAnalysisStates.finish
     ]
 )
 async def finish(message: types.Message, state: FSMContext):
@@ -414,6 +426,74 @@ async def cant_asleep_fifth_advice(message: types.Message, state: FSMContext):
     await CantFallAsleepStates.fifth_advice.set()
     await message.answer(Texts.cant_fall_asleep_fifth_advice)
     await message.answer(Texts.is_useful, reply_markup=YesNoButtons.buttons())
+
+
+@dp.message_handler(
+    Text(equals=YesNoButtons.YES.value, ignore_case=True),
+    state=MainStates.start
+)
+async def sleep_analysis_first_date(message: types.Message, state: FSMContext):
+    await SleepAnalysisStates.input_first_time.set()
+    await message.answer(Texts.sleep_analysis_first_time)
+
+
+@dp.message_handler(
+    state=SleepAnalysisStates.input_first_time
+)
+async def sleep_analysis_second_date(message: types.Message, state: FSMContext):
+    if not TIME_RE.match(message.text):
+        await message.answer(Texts.sleep_analysis_time_error)
+    else:
+        await SleepAnalysisStates.next()
+        await state.set_data(message.text)
+        await message.answer(Texts.sleep_analysis_second_time)
+
+
+@dp.message_handler(
+    state=SleepAnalysisStates.input_second_time
+)
+async def sleep_analysis_finish(message: types.Message, state: FSMContext):
+    first_time = await state.get_data()
+    if not TIME_RE.match(message.text):
+        await message.answer(Texts.sleep_analysis_time_error)
+    else:
+        first_time_object = datetime.strptime(str(first_time), '%H:%M')
+        second_time_object = datetime.strptime(message.text, '%H:%M')
+        result = second_time_object - first_time_object  # в объекте почему то нет часа
+        if result.seconds < 25200:
+            await MainStates.themes.set()
+            await message.answer(Texts.sleep_analysis_bad_result,
+                                 reply_markup=ThemesButtonsTexts.buttons())
+        elif 25200 <= result.seconds <= 32400:
+            await MainStates.themes.set()
+            await message.answer(Texts.sleep_analysis_ok_result)
+            await message.answer(Texts.themes,
+                                 reply_markup=ThemesButtonsTexts.buttons())
+        else:
+            await SleepAnalysisStates.next()
+            await message.answer(Texts.sleep_analysis_grate_result,
+                                 reply_markup=YesNoButtons.buttons())
+
+
+@dp.message_handler(state=SleepAnalysisStates.third_step)
+async def sleep_analysis_finish(message: types.Message, state: FSMContext):
+    if message.text.lower() == YesNoButtons.YES.value.lower():
+        await SleepAnalysisStates.next()
+        await message.answer(Texts.sleep_analysis_finish_yes)
+        await message.answer(Texts.anything_else, reply_markup=YesNoButtons.buttons())
+    if message.text.lower() == YesNoButtons.NO.value.lower():
+        await SleepAnalysisStates.next()
+        await message.answer(Texts.sleep_analysis_finish_no)
+        await message.answer(Texts.anything_else, reply_markup=YesNoButtons.buttons())
+
+
+@dp.message_handler(
+    Text(ThemesButtonsTexts.NOTHING.value, ignore_case=True),
+    state=MainStates.themes
+)
+async def nothing_finish(message: types.Message, state: FSMContext):
+    await MainStates.finish.set()
+    await message.answer(Texts.nothing_finish)
 
 
 if __name__ == '__main__':
